@@ -1,7 +1,7 @@
 # Louis Widom
 # lpw8274@rit.edu
 # Designed in Windows 10
-# Last updated 10 September 2020
+# Last updated 23 September 2020
 
 # List of required packages:
 #   ggplot2
@@ -10,6 +10,9 @@
 #   reshape2
 # Associated data files (should be located in the same folder as this script):
 #   winequality-white.txt
+#   EV_cell_migration.txt
+
+# ======================================================================================
 
 # Begin Script
 library('ggplot2')
@@ -54,6 +57,8 @@ curve(dnorm(x,mean=para[1],sd=para[2]),lwd=2,col='green',add=T)
 legend(40,0.03,legend=c('density line','normal fit'),col=c('blue','green'),lty=1)
 # Close the PDF
 dev.off()
+
+# =====================================================================================
 
 # Read in "Wine Quality Dataset" available from Machine Learning Mastery
 # (available: https://machinelearningmastery.com/standard-machine-learning-datasets/)
@@ -169,3 +174,56 @@ wine_scatter <- ggplot(wine.data,aes(x=alcohol,y=residual_sugar,shape=quality,co
 pdf("wine_scatter_plot.pdf")
 print(wine_scatter)
 dev.off()
+
+# =====================================================================================
+
+# Read in cell migration data from Dr. Gaborski's lab
+migration_data <- read.table(paste(getwd(),'/EV_cell_migration.txt',sep=''),header=TRUE)
+condition <- migration_data$Condition
+average_speed <- migration_data$avg_s
+displacement <- migration_data$displacement
+persistence_index <- migration_data$persistence_index
+pathlength <- migration_data$pathlength
+
+# Set up data frame
+migration.data <- data.frame(condition,average_speed,displacement,persistence_index,pathlength)
+
+# Run MANOVA
+Y <- cbind(average_speed,displacement,persistence_index,pathlength)
+migration.manova <- manova(Y ~ condition)
+print(summary(migration.manova,test="Pillai"))
+
+# Run multiple regression to see if average_speed is predicted by the other variables
+migration.multiple_regression <- lm(average_speed ~ displacement + persistence_index +
+                                      pathlength, data=migration.data)
+print(summary(migration.multiple_regression))
+
+# Run multiple regression again, but only within the Complete_media category
+migration.multiple_regression_complete <- lm(average_speed ~ displacement + persistence_index +
+                                      pathlength, data=subset(migration.data,condition=='Complete_media'))
+print(summary(migration.multiple_regression_complete))
+
+# Create a composite variable from average_speed and pathlength
+average_time = (pathlength/average_speed)
+
+# Run ANCOVA to see how displacement predicts average_speed while controlling for the average_time
+migration.ancova = aov(average_speed ~ displacement*average_speed, data=migration.data)
+print(migration.ancova)
+
+# Omit conditions from dataframe so that it is compatible with PCA
+migration.data_numerical <- data.frame(average_speed,displacement,persistence_index,pathlength)
+# Run Principle Components Analysis
+migration.pca <- prcomp(migration.data_numerical, scale=TRUE)
+# Create a Scree Plot
+## make a scree plot
+migration.pca.var <- migration.pca$sdev^2
+migration.pca.var.per <- round(migration.pca.var/sum(migration.pca.var)*100, 1)
+barplot(migration.pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
+loading_scoresPC1 <- migration.pca$rotation[,1]
+print(loading_scoresPC1)
+loading_scoresPC2 <- migration.pca$rotation[,2]
+print(loading_scoresPC2)
+loading_scoresPC3 <- migration.pca$rotation[,3]
+print(loading_scoresPC3)
+loading_scoresPC4 <- migration.pca$rotation[,4]
+print(loading_scoresPC4)

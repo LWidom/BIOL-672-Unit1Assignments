@@ -1,7 +1,7 @@
 # Louis Widom
 # lpw8274@rit.edu
 # Designed in Windows 10
-# Last updated 23 September 2020
+# Last updated 25 September 2020
 
 # List of required packages:
 #   ggplot2
@@ -227,3 +227,20 @@ loading_scoresPC3 <- migration.pca$rotation[,3]
 print(loading_scoresPC3)
 loading_scoresPC4 <- migration.pca$rotation[,4]
 print(loading_scoresPC4)
+
+# Perform factor analysis
+migration.fa <- factanal(migration.data_numerical,1,rotation="varimax")
+print(migration.fa,digits=2,cutoff=.3,sort=TRUE)
+
+# Create scatterplot of average_speed and displacement
+migration_scatter <- ggplot(migration.data,aes(x=average_speed,y=displacement,shape=condition,color=condition))+
+  geom_point() + scale_shape_manual(values=c(15,16,17,18,25))
+print(migration_scatter)
+# Run K means clustering
+migration.kmeans <- kmeans(migration.data_numerical,centers=2)
+# Add K means to the numerical dataframe
+migration.data_numerical$cluster <- as.character(migration.kmeans$cluster)
+# Plot the clusters determined by K means
+migration_kmeans_scatter <- ggplot(migration.data_numerical,aes(x=average_speed,y=displacement,color=cluster))+
+  geom_point()
+print(migration_kmeans_scatter)

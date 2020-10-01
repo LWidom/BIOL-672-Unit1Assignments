@@ -1,13 +1,14 @@
 # Louis Widom
 # lpw8274@rit.edu
 # Designed in Windows 10
-# Last updated 25 September 2020
+# Last updated 01 October 2020
 
 # List of required packages:
 #   ggplot2
 #   MASS
 #   plyr
 #   reshape2
+#   grid
 # Associated data files (should be located in the same folder as this script):
 #   winequality-white.txt
 #   EV_cell_migration.txt
@@ -19,6 +20,7 @@ library('ggplot2')
 library('MASS')
 library('plyr')
 library('reshape2')
+library('grid')
 # Set the working directory to be the same location as this script
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
@@ -38,7 +40,7 @@ cat(phrase1,phrase2)
 # Create a file to save the sample mean and standard deviation of the random dataset
 # located in the same folder as this script
 sink(file = paste(getwd(),'/desc.txt',sep=''))
-cat(phrase1,phrase2)
+cat(phrase1,phrase2,'\n')
 sink()
 
 # Fit a normal distribution to the data
@@ -191,51 +193,41 @@ migration.data <- data.frame(condition,average_speed,displacement,persistence_in
 # Run MANOVA
 Y <- cbind(average_speed,displacement,persistence_index,pathlength)
 migration.manova <- manova(Y ~ condition)
-print(summary(migration.manova,test="Pillai"))
 
 # Run multiple regression to see if average_speed is predicted by the other variables
 migration.multiple_regression <- lm(average_speed ~ displacement + persistence_index +
                                       pathlength, data=migration.data)
-print(summary(migration.multiple_regression))
 
 # Run multiple regression again, but only within the Complete_media category
 migration.multiple_regression_complete <- lm(average_speed ~ displacement + persistence_index +
                                       pathlength, data=subset(migration.data,condition=='Complete_media'))
-print(summary(migration.multiple_regression_complete))
 
 # Create a composite variable from average_speed and pathlength
 average_time = (pathlength/average_speed)
-
 # Run ANCOVA to see how displacement predicts average_speed while controlling for the average_time
-migration.ancova = aov(average_speed ~ displacement*average_speed, data=migration.data)
-print(migration.ancova)
+migration.ancova = aov(average_speed ~ displacement*average_time, data=migration.data)
 
 # Omit conditions from dataframe so that it is compatible with PCA
 migration.data_numerical <- data.frame(average_speed,displacement,persistence_index,pathlength)
 # Run Principle Components Analysis
 migration.pca <- prcomp(migration.data_numerical, scale=TRUE)
+loading_scoresPC1 <- migration.pca$rotation[,1]
+loading_scoresPC2 <- migration.pca$rotation[,2]
+loading_scoresPC3 <- migration.pca$rotation[,3]
+loading_scoresPC4 <- migration.pca$rotation[,4]
 # Create a Scree Plot
-## make a scree plot
 migration.pca.var <- migration.pca$sdev^2
 migration.pca.var.per <- round(migration.pca.var/sum(migration.pca.var)*100, 1)
+pdf("migration_scree_plot.pdf")
 barplot(migration.pca.var.per, main="Scree Plot", xlab="Principal Component", ylab="Percent Variation")
-loading_scoresPC1 <- migration.pca$rotation[,1]
-print(loading_scoresPC1)
-loading_scoresPC2 <- migration.pca$rotation[,2]
-print(loading_scoresPC2)
-loading_scoresPC3 <- migration.pca$rotation[,3]
-print(loading_scoresPC3)
-loading_scoresPC4 <- migration.pca$rotation[,4]
-print(loading_scoresPC4)
+dev.off()
 
 # Perform factor analysis
 migration.fa <- factanal(migration.data_numerical,1,rotation="varimax")
-print(migration.fa,digits=2,cutoff=.3,sort=TRUE)
 
 # Create scatterplot of average_speed and displacement
 migration_scatter <- ggplot(migration.data,aes(x=average_speed,y=displacement,shape=condition,color=condition))+
   geom_point() + scale_shape_manual(values=c(15,16,17,18,25))
-print(migration_scatter)
 # Run K means clustering
 migration.kmeans <- kmeans(migration.data_numerical,centers=2)
 # Add K means to the numerical dataframe
@@ -243,4 +235,52 @@ migration.data_numerical$cluster <- as.character(migration.kmeans$cluster)
 # Plot the clusters determined by K means
 migration_kmeans_scatter <- ggplot(migration.data_numerical,aes(x=average_speed,y=displacement,color=cluster))+
   geom_point()
-print(migration_kmeans_scatter)
+# Generate pdf with the two scatterplots
+pdf("migration_kmeans.pdf")
+pushViewport(viewport(layout = grid.layout(2, 1)))
+print(migration_scatter, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(migration_kmeans_scatter, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
+dev.off()
+
+# Fit normal, lognormal, exponential, and Gaussian Mixture Model to average_time
+fitNORM <- fitdistr(average_time, densfun="normal")
+fitLNORM <- fitdistr(average_time, densfun="log-normal")
+fitEXP <- fitdistr(average_time, densfun="exponential")
+fitGMM <- normalmixEM(average_time)
+fitGMM_loglik <- fitGMM$loglik
+# Evaluate fits with Bayesian Information Criterion
+BIC_GMM <- -2*fitGMM_loglik+4*log(150)
+BICfit <- BIC(fitNORM,fitLNORM,fitEXP)
+# Plot histograms to demonstrate the fit of each model
+model_plot1 <-ggplot(migration.data, aes(x=average_time)) + geom_histogram(aes(y=..density..)) + geom_density() + stat_function(fun=dnorm, color="red", args=list(mean = fitNORM$estimate[1], sd = fitNORM$estimate[2])) 
+model_plot2 <-ggplot(migration.data, aes(x=average_time)) + geom_histogram(aes(y=..density..)) + geom_density() + stat_function(fun=dlnorm, color="red", args=list(meanlog = fitLNORM$estimate[1], sdlog = fitLNORM$estimate[2])) 
+model_plot3 <-ggplot(migration.data, aes(x=average_time)) + geom_histogram(aes(y=..density..)) + geom_density() + stat_function(fun=dexp, color="red", args=list(rate = fitEXP$estimate[1])) 
+model_plot4 <-ggplot(migration.data, aes(x=average_time)) + geom_histogram(aes(y=2*(..density..))) + geom_density(aes(y=2*(..density..))) + stat_function(fun=dnorm, color="red", args=list(mean = fitGMM$mu[1], sd = fitGMM$sigma[1])) + stat_function(fun=dnorm, color="red", args=list(mean = fitGMM$mu[2], sd = fitGMM$sigma[2])) 
+pdf("migration_model_fit_histograms.pdf")
+pushViewport(viewport(layout = grid.layout(2, 2)))
+print(model_plot1, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(model_plot2, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
+print(model_plot3, vp = viewport(layout.pos.row = 2, layout.pos.col = 1))
+print(model_plot4, vp = viewport(layout.pos.row = 2, layout.pos.col = 2))
+dev.off()
+
+# Create a file to save the the various test results and interpretation and save it in the same
+# folder as this script
+sink(file = paste(getwd(),'/migration_results.txt',sep=''))
+print(summary(migration.manova,test="Pillai"))
+print(summary(migration.multiple_regression))
+print(summary(migration.multiple_regression_complete))
+print(migration.ancova)
+print(loading_scoresPC1)
+print(loading_scoresPC2)
+print(loading_scoresPC3)
+print(loading_scoresPC4)
+print(migration.fa,digits=2,cutoff=.3,sort=TRUE)
+print(BICfit)
+print ("BIC for GMM")
+print(BIC_GMM)
+cat('Of the models tested, the normal distribution appears to describe the average_time','\n',
+    'composite variable the best. This can be determined by looking at the BIC values', '\n',
+    'which are smallest for the normal distribution. Since GMM does not have the best fit,','\n',
+    'no latent factors are indicated.')
+sink()

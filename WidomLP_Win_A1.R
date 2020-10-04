@@ -1,7 +1,7 @@
 # Louis Widom
 # lpw8274@rit.edu
 # Designed in Windows 10
-# Last updated 01 October 2020
+# Last updated 03 October 2020
 
 # List of required packages:
 #   ggplot2
@@ -9,6 +9,7 @@
 #   plyr
 #   reshape2
 #   grid
+#   mixtools
 # Associated data files (should be located in the same folder as this script):
 #   winequality-white.txt
 #   EV_cell_migration.txt
@@ -21,6 +22,7 @@ library('MASS')
 library('plyr')
 library('reshape2')
 library('grid')
+library('mixtools')
 # Set the working directory to be the same location as this script
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
@@ -35,12 +37,12 @@ random_data_sd <- sd(random_data);
 # Prints the sample mean and standard deviation
 phrase1 <- paste('The sample mean is',toString(random_data_mean))
 phrase2 <- paste('and the sample standard deviation is',toString(random_data_sd))
-cat(phrase1,phrase2)
+cat(phrase1,phrase2,'\n')
 
 # Create a file to save the sample mean and standard deviation of the random dataset
 # located in the same folder as this script
 sink(file = paste(getwd(),'/desc.txt',sep=''))
-cat(phrase1,phrase2,'\n')
+cat(phrase1,phrase2)
 sink()
 
 # Fit a normal distribution to the data
@@ -267,15 +269,54 @@ dev.off()
 # Create a file to save the the various test results and interpretation and save it in the same
 # folder as this script
 sink(file = paste(getwd(),'/migration_results.txt',sep=''))
+print("MANOVA results:")
 print(summary(migration.manova,test="Pillai"))
+cat('The low Pr value (< alpha=0.05) indicates that the differences between category \n',
+    'means are significant. \n')
+print("Multiple regression results:")
 print(summary(migration.multiple_regression))
+cat('Displacement appears to be a good predictor for average_speed, based on its low \n',
+    'Pr value. The other independent variables have Pr values over alpha=0.05, so they \n',
+    'are less likely to be good predictors of average_speed. \n')
+print("Multiple regression results within complete_media category:")
 print(summary(migration.multiple_regression_complete))
-print(migration.ancova)
+cat('Interestingly, the best predictor for average_speed changes when we only examine \n',
+    'data within the complete_media category. Displacement no longer has a significant \n',
+    'Pr value, but pathlength does. This indicates that pathlength is a better predictor \n',
+    'of average_speed within this category. \n')
+print("ANCOVA results:")
+print(summary(migration.ancova))
+cat('As seen in the earlier MANOVA test, ANCOVA also indicates that displacement is a \n',
+    'good predictor of average_speed. This is still the case when we control for the \n',
+    'composite variable average_time since the Pr value remains below the significance \n',
+    'level of alpha=0.05. \n')
+print("Loading scores from Principle Components Analysis")
 print(loading_scoresPC1)
 print(loading_scoresPC2)
 print(loading_scoresPC3)
 print(loading_scoresPC4)
+cat('Based on the Scree plot (visible in \"migration_scree_plot.pdf"), about 70% of the \n',
+    'variance is explained by PC1 and around 20% is explained by PC2. PCs 3 and 4 explain \n',
+    'about 10% of the variance together. None of the PCs have all positive loadings. \n',
+    'Interestingly, all of the loadings for PC1 are negative. This indicates \n',
+    'that the variables have an inverse relationship with the component. Furthermore, \n',
+    'the loadings are fairly similar for all of the variables (between -0.6 and -0.4), \n',
+    'so their impact on PC1 is relatively equal. With that said, it can be argued that \n',
+    'displacement has the largest impact since the absolute value of its loading score \n',
+    'is the largest out of the group. Pathlength has the largest impact on PC2, \n',
+    'average_speed has the largest impact on PC3, and displacement has the largest impact \n',
+    'on PC4. \n')
+print("Factor Analysis")
 print(migration.fa,digits=2,cutoff=.3,sort=TRUE)
+cat('There were not enough variables to analyze more than one factor. The low p-value \n',
+    '(< alpha=0.05) indicates that this model does not fit the data perfectly. 65% of \n',
+    'the variance is explained by the single factor. The uniqueness for each variable \n',
+    'indicates the amount of variance that is not explained by the factor. It is worth \n',
+    'noting that all of the variance in displacement is explained by the factor. This \n',
+    'is reflected by displacement\'s high loading (1.0). There are not enough factors \n',
+    'to determine if there are latent underlying factors in the data. More input variables \n',
+    'may be required. \n')
+print("BIC for normal, log-normal, and exponential model fits")
 print(BICfit)
 print ("BIC for GMM")
 print(BIC_GMM)

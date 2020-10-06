@@ -1,7 +1,7 @@
 # Louis Widom
 # lpw8274@rit.edu
 # Designed in Windows 10
-# Last updated 03 October 2020
+# Last updated 06 October 2020
 
 # List of required packages:
 #   ggplot2
@@ -26,7 +26,7 @@ library('mixtools')
 # Set the working directory to be the same location as this script
 setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
 
-# Generates a dataset containing 5000 random numbers in a Poisson distribution,
+# Generate a dataset containing 5000 random numbers in a Poisson distribution,
 # with means at 10, 23, and 47
 random_data <- rpois(5000,c(10,23,47));
 
@@ -130,7 +130,7 @@ print(alcohol.t2)
 print(alcohol.ks)
 cat('The one-way ANOVA p-values (p < alpha=0.5) indicate that at least one of the',"\n",
     '"quality" groups likely differs from the rest in terms of the residual_sugar',"\n",
-    'pH, and alcohol content. This is confirmed by the pairwise t tests; while not',"\n",
+    'pH, or alcohol content. This is confirmed by the pairwise t tests; while not',"\n",
     'all of these p-values are significant, there are at least some below alpha for',"\n",
     'each type of value. The low p-values for the KS tests indicate that none of the',
     "\n",'data is normally distributed. Low p-values from the nonparametric Kruskal-',"\n",
@@ -315,7 +315,15 @@ cat('There were not enough variables to analyze more than one factor. The low p-
     'noting that all of the variance in displacement is explained by the factor. This \n',
     'is reflected by displacement\'s high loading (1.0). There are not enough factors \n',
     'to determine if there are latent underlying factors in the data. More input variables \n',
-    'may be required. \n')
+    'may be required. As such, I did not see if any variables tended to cluster together. \n',
+    'If the loadings for two traits were far apart along the factor axis, it could be \n',
+    'possible that they are negatively correlated. Conversely, if they are close together \n',
+    'then they may be positively correlated. \n')
+print("K means clustering")
+cat('See \"migration_kmeans.pdf.\" I was only able to discern two clusters from my initial \n',
+    'scatter plot (the complete_media condition and everything else), so I only had the \n',
+    'K means algorithm look for two clusters. It was able to identify them, though it ended \n',
+    'up assigning extra datapoints to the complete_media condition.\n')
 print("BIC for normal, log-normal, and exponential model fits")
 print(BICfit)
 print ("BIC for GMM")
